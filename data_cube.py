@@ -1,12 +1,8 @@
 import os
-import GMR.ConfigureSettings as cs
 import GMR.InputOutput as io
-import time
 
-import GMRScripts.organisation_functions as org
-import GMRScripts.image_stack as imst
+main_dir = io.config_dir_path()
 
-main_dir = cs.config_dir_path()
 
 exp_settings = io.exp_in(main_dir)
 print('Experiment Settings:\n' + f'{exp_settings}' + '\n')
@@ -30,8 +26,9 @@ for hs_img in exp_settings['hs_imgs']:
                                                mode='r')
         data_cube.append(corrected_img)
 
-        cs.update_progress(index / len(data_files))
+        io.update_progress(index / len(data_files))
 
-    io.data_array_out(array_name=data_cube,
-                      file_name='hs_data_cube',
-                      dir_name=img_dir)
+    print('\nSaving data cube...approximately 1min per 100 imgs')
+    io.array_out(array_name=data_cube,
+                 file_name=f'{hs_img}_datacube',
+                 dir_name=img_dir)
