@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -115,12 +116,12 @@ def exp_in(dir_name):
     '''
 
     exp_settings = {
-        'int_time' : 0.0,
-        'slit' : 0.0,
-        'wav_i' : 0.0,
-        'wav_f' : 0.0,
-        'wav_s' : 0.0,
-        'time_s' : 0,
+        'int_time': 0.0,
+        'slit': 0.0,
+        'wav_i': 0.0,
+        'wav_f': 0.0,
+        'wav_s': 0.0,
+        'time_s': 0,
         'hs_imgs': []
     }
 
@@ -140,8 +141,8 @@ def exp_in(dir_name):
             exp_settings['wav_f'] = float(line.split(':')[1].strip())
         if 'wavelength step' in line.lower():
             exp_settings['wav_s'] = float(line.split(':')[1].strip())
-        #if 'time step' in line.lower():
-        #    exp_settings['time_s'] = int(line.split(':')[1].strip())
+        if 'time step' in line.lower():
+            exp_settings['time_s'] = int(line.split(':')[1].strip())
         if 'hs_img_' in line.lower():
             exp_settings['hs_imgs'].append(line.split('\t')[0].strip())
 
@@ -160,7 +161,7 @@ def get_pwr_spectrum(dir_name,
     '''
     power_spectrum = os.path.join(dir_name, 'power_spectrum.csv')
     step, wl, f, power = np.genfromtxt(power_spectrum,
-                                       delimiter='\t',
+                                       delimiter=',',
                                        skip_header=1,
                                        unpack=True)
     max_element = np.amax(power)
@@ -326,8 +327,55 @@ def csv_out():
     pass
 
 
-def user_in():
-    pass
+def user_in(choiceDict):
+    '''
+    Requests input from the user, returns user's choice (as int)
+    Returned choice to be used as key to access choice dictionary.
+    Args:
+        user_choice: <dict> python dictionary keys simple ints, values
+                     choice to be made
+    '''
+    while True:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print('Please choose from the following options, type corresponding'
+              ' number and press "Enter"')
+        for k, v in choiceDict.items():
+            print(f'[{k}] : {v}')
+        choice = input('Your choice? ')
+
+        if choice not in str(choiceDict):
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("Please enter a valid choice")
+            input('Press any key to continue...')
+            continue
+
+        break
+
+    return int(choice)
+
+
+def system_settings():
+    '''
+    '''
+    system_settings = {
+        'power_spectrum_save' : True,
+        'normalise_image_save' : False,
+    }
+
+    settings_dict = {
+        0 : 'default settings',
+        1 : 'save everything',
+        2 : 'save results only'
+    }
+
+    user_choices = user_in(choiceDict=settings_dict)
+
+    if user_choices == 0:
+        print('\nYou have selected the following options:\n'
+              f'{system_settings}\n')
+
+    return system_settings
+
 
 
 def update_progress(progress):
