@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -85,12 +86,11 @@ def create_all_dirs(dir_name):
     Args:
         dir_name: <string) directory path for data
     '''
-    create_dir_list = ['corrected_imgs']
+    create_dir_list = ['corrected_imgs',
+                       'corrected_imgs_pngs']
     for directory in create_dir_list:
         new_dir = os.path.join(dir_name, directory)
-        new_png_dir = os.path.join(dir_name, f'{directory}_pngs')
         check_dir_exists(new_dir)
-        check_dir_exists(new_png_dir)
 
 
 def check_dir_exists(dir_name):
@@ -115,12 +115,12 @@ def exp_in(dir_name):
     '''
 
     exp_settings = {
-        'int_time' : 0.0,
-        'slit' : 0.0,
-        'wav_i' : 0.0,
-        'wav_f' : 0.0,
-        'wav_s' : 0.0,
-        'time_s' : 0,
+        'int_time': 0.0,
+        'slit': 0.0,
+        'wav_i': 0.0,
+        'wav_f': 0.0,
+        'wav_s': 0.0,
+        'time_s': 0,
         'hs_imgs': []
     }
 
@@ -140,7 +140,7 @@ def exp_in(dir_name):
             exp_settings['wav_f'] = float(line.split(':')[1].strip())
         if 'wavelength step' in line.lower():
             exp_settings['wav_s'] = float(line.split(':')[1].strip())
-        #if 'time step' in line.lower():
+        # if 'time step' in line.lower():
         #    exp_settings['time_s'] = int(line.split(':')[1].strip())
         if 'hs_img_' in line.lower():
             exp_settings['hs_imgs'].append(line.split('\t')[0].strip())
@@ -326,8 +326,85 @@ def csv_out():
     pass
 
 
-def user_in():
-    pass
+def user_in(choiceDict):
+    '''
+    Requests input from the user, returns user's choice (as int)
+    Returned choice to be used as key to access choice dictionary.
+    Args:
+        user_choice: <dict> python dictionary keys simple ints, values
+                     choice to be made
+    '''
+    while True:
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print('Please choose from the following options, type corresponding'
+              'number and press "Enter"')
+        for k, v in choiceDict.items():
+            print(f'[{k}] : {v}')
+        choice = input('Your choice? ')
+
+        if choice not in str(choiceDict):
+            os.system('cls' if os.name == 'nt' else 'clear')
+            print("Please enter a valid choice")
+            input('Press any key to continue...')
+            continue
+
+        break
+
+    return int(choice)
+
+
+def process_choice(choice):
+    '''
+    Provides bool options for the code processed as determined by the
+    user.
+    Args:
+        choice: <int> output from user_in function
+    Returns:
+        raw_save: <bool> if true all raw images are saved
+        norm_save: <bool> if true all normalised images are saved
+        pwr_save: <bool> if true power spectrum is saved
+    '''
+    normalise = True
+    datacube = True
+    fsr = True
+
+    if choice == 1:
+        datacube = False
+
+    if choice == 2:
+        normalise = False
+
+    if choice == 3:
+        normalise = False
+        datacube = False
+
+    return normalise, datacube, fsr
+
+def norm_choice(choice):
+    '''
+    Provides bool options for the normalisation process as determined by the
+    user. There are three options, raw image save, normalised image save and
+    power spectrum save. The system is given pre-determined defaults which
+    can be user altered.
+    Args:
+        choice: <int> output from user_in function
+    Returns:
+        raw_save: <bool> if true all raw images are saved
+        norm_save: <bool> if true all normalised images are saved
+        pwr_save: <bool> if true power spectrum is saved
+    '''
+    raw_save = False
+    norm_save = False
+    pwr_save = True
+
+    if choice == 1:
+        raw_save = True
+        norm_save = True
+        pwr_save = True
+
+    if choice == 2:
+        pwr_save = False
+    return raw_save, norm_save, pwr_save
 
 
 def update_progress(progress):

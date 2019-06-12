@@ -1,7 +1,7 @@
 import os
 import numpy as np
-import matplotlib.pyplot as plt
 import GMR.InputOutput as io
+
 
 def pwr_norm(image_data, file_name, norm_power, dir_name):
     '''
@@ -23,7 +23,7 @@ def pwr_norm(image_data, file_name, norm_power, dir_name):
     norm_img = (image_data / norm_power[int(img_no)])
     norm_img *= 1e3  # increase precision for saving as int
 
-    norm_img = (norm_img).astype('int16')
+    norm_img = (norm_img).astype('int32')
     return norm_img
 
 
@@ -137,12 +137,33 @@ def processing_parameters(main_dir,
                                     image_save)
 
     print(f'\nTotal number of files: {number_files}')
-    print(f'Save images set to: {image_save}')
+    print(f'Save normalised images set to: {image_save}')
     print(f'Total file size: ~{file_size} GB')
     print(f'Total processing time: ~{process_time} mins')
 
 
-def reshape_to_spec_lists(hs_data_cube, img_width = 1920, img_height=1080):
+def find_img_size(dir_name, file_string):
+    '''
+    Find size of an individual image from the hyperspectral imaging file,
+    used to determine the pixel size of the camera. Find the height and
+    width of each image and outputs the number of rows and colums as
+    variables.
+    Args:
+        dir_name: <string> directory containing images
+        file_string: <string> image names within direcotry (eg. img_)
+    Returns:
+        np.shape: <height and width>
+    '''
+    data_files = io.extract_files(dir_name=dir_name,
+                                  file_string=file_string)
+    zero_data = data_files[0]
+    zero = os.path.join(dir_name, zero_data)
+    zero_file = np.load(zero)
+
+    return np.shape(zero_file)
+
+
+def reshape_to_spec_lists(hs_data_cube, img_width=1920, img_height=1080):
     '''
     Reshapes a numpy hyperspectral data cube with axes (lambda, x, y)
     into an array with axes (pixels, lambda) so the spectrum corresponding
@@ -161,7 +182,8 @@ def reshape_to_spec_lists(hs_data_cube, img_width = 1920, img_height=1080):
     spec_list = np.transpose(spec_list)
     return spec_list
 
-def reshape_to_img(spec_list, img_width = 1920, img_height = 1080):
+
+def reshape_to_img(spec_list, img_width=1920, img_height=1080):
     '''
     Args:
         spec_list: 1D numpy array
@@ -175,10 +197,17 @@ def reshape_to_img(spec_list, img_width = 1920, img_height = 1080):
     return img_array
 
 
-if __name__ == '__main__':
-    number_files = [100, 200, 300, 400, 500, 600, 700, 800]
-    image_save = [True, False]
-    for files in number_files:
-        for save in image_save:
-            file_size = normalise_file_size(files, image_save=save)
-            process_time = normalise_process_time(files, image_save=save)
+def wav_space(exp_settings):
+    '''
+    Generate the wavelength space from experimental settings dictionary
+    Args:
+        exp_settings: <dictionary> experimental settings function
+    Returns:
+        wavs: <array> wavelengths
+    '''
+    wavs = np.linspace(start=exp_settings['wav_i'],
+                       stop=exp_settings['wav_f'],
+                       num=((exp_settings['wav_f'] - exp_settings['wav_i'])
+                             / exp_settings['wav_s'])
+                             + 1)
+    return wavs
