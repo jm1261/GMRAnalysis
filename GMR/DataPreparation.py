@@ -1,6 +1,7 @@
 import os
 import numpy as np
-import matplotlib.pyplot as plt
+import GMR.InputOutput as io
+
 
 def pwr_norm(image_data, file_name, norm_power, dir_name):
     '''
@@ -22,7 +23,7 @@ def pwr_norm(image_data, file_name, norm_power, dir_name):
     norm_img = (image_data / norm_power[int(img_no)])
     norm_img *= 1e3  # increase precision for saving as int
 
-    norm_img = (norm_img).astype('int16')
+    norm_img = (norm_img).astype('int32')
     return norm_img
 
 
@@ -74,3 +75,139 @@ def roi():
     data for further processing.
     '''
     pass
+
+
+def normalise_file_size(number_files,
+                        image_save=False):
+    '''
+    Calculates the total file size output for normalising images and
+    processing a data cube.
+    Args:
+        number_files: <int> number of files to process
+        image_save: <bool> if images are saved set True
+    '''
+    file_size = (0.00775 * number_files) - 0.00578
+
+    if image_save:
+        file_size = (0.00794 * number_files) - 0.00578
+
+    file_size = round(file_size, 2)
+    return file_size
+
+
+def normalise_process_time(number_files,
+                           image_save=False):
+    '''
+    Calculates the total processing time for normalising images
+    and processing a data cube.
+    Args:
+        number_files: <int> number of files to process
+        image_save: <bool> if images are saved set True
+    '''
+    process_time = -0.3+(2.5*np.exp((number_files-173.2)/324.3))
+
+    if image_save:
+        process_time = -3.7+(2.9*np.exp((number_files+290.5)/421.9))
+
+    process_time = round(process_time, 1)
+    return process_time
+
+
+def processing_parameters(main_dir,
+                          exp_settings,
+                          image_save=False):
+    '''
+    Calculate the total processing time based on the number of files
+    present in each hs_img. Give the option to output a time for
+    both image output and data output.
+    '''
+    number_files = 0
+    for hs_img in exp_settings['hs_imgs']:
+        img_dir = os.path.join(main_dir, hs_img)
+        if not os.path.isdir(img_dir):
+            continue
+
+        data_files = io.extract_files(dir_name=img_dir,
+                                      file_string='img_')
+        number_files += len(data_files)
+
+    process_time = normalise_process_time(number_files,
+                                          image_save)
+    file_size = normalise_file_size(number_files,
+                                    image_save)
+
+    print(f'\nTotal number of files: {number_files}')
+    print(f'Save normalised images set to: {image_save}')
+    print(f'Total file size: ~{file_size} GB')
+    print(f'Total processing time: ~{process_time} mins')
+
+
+def find_img_size(dir_name, file_string):
+    '''
+    Find size of an individual image from the hyperspectral imaging file,
+    used to determine the pixel size of the camera. Find the height and
+    width of each image and outputs the number of rows and colums as
+    variables.
+    Args:
+        dir_name: <string> directory containing images
+        file_string: <string> image names within direcotry (eg. img_)
+    Returns:
+        np.shape: <height and width>
+    '''
+    data_files = io.extract_files(dir_name=dir_name,
+                                  file_string=file_string)
+    zero_data = data_files[0]
+    zero = os.path.join(dir_name, zero_data)
+    zero_file = np.load(zero)
+
+    return np.shape(zero_file)
+
+
+def reshape_to_spec_lists(hs_data_cube, img_width=1920, img_height=1080):
+    '''
+    Reshapes a numpy hyperspectral data cube with axes (lambda, x, y)
+    into an array with axes (pixels, lambda) so the spectrum corresponding
+    to each pixel can be iterated.
+    Args:
+        hs_data_cube: 3D numpy array
+        img_width: int, width of image in pixels. Optional
+        img_height: int, height of image in pixels. Optional
+    Returns:
+        spec_list: 2D numpy array
+    '''
+    num_wavs, img_width, img_height = hs_data_cube.shape
+    num_pixels = img_width*img_height
+
+    spec_list = np.reshape(hs_data_cube, (num_wavs, num_pixels))
+    spec_list = np.transpose(spec_list)
+    return spec_list
+
+
+def reshape_to_img(spec_list, img_width=1920, img_height=1080):
+    '''
+    Args:
+        spec_list: 1D numpy array
+        img_width: int, width of image in pixels. Optional
+        img_height: int, height of image in pixels. Optional
+    Returns:
+        img_array: 2D numpy array
+    '''
+    img_array = np.reshape(spec_list, (img_width, img_height))
+    img_array = np.transpose(img_array)
+    return img_array
+
+
+def wav_space(exp_settings):
+    '''
+    Generate the wavelength space from experimental settings dictionary
+    Args:
+        exp_settings: <dictionary> experimental settings function
+    Returns:
+        wavs: <array> wavelengths
+    '''
+    wavs = np.linspace(start=exp_settings['wav_i'],
+                       stop=exp_settings['wav_f'],
+                       num=((exp_settings['wav_f'] - exp_settings['wav_i'])
+                             / exp_settings['wav_s'])
+                             + 1)
+    return wavs

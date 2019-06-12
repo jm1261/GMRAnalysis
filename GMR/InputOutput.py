@@ -4,7 +4,44 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-from shutil import copy
+
+
+def analysis_in_json(dir_name):
+    '''
+    Reads in the analysis settings file configured by the user including
+    the number of experiments to be analysed, where the data is located
+    for each experiment, what normalisation and analysis is required for
+    each experiment, whether images should be saved to disk and where data
+    should be saved.
+    Args:
+        dir_name: <string> directory containing experiment settings document
+    Returns:
+        a dictionary containing each analysis setting
+    Example JSON:
+        {
+            "experiments": [
+                {
+                    "dir_name": "Test1",
+                    "root_path": "/Users/chris/Documents/Python/Put_Data_Here",
+                    "analysis": "FSR",
+                    "normalise": "Power Meter",
+                    "save_imgs": "False",
+                    "save_path": "/Users/chris/Documents/Python/Put_Data_Here"
+                },
+                {
+                    "dir_name": "Test2",
+                    "root_path": "/Volumes/krauss/GMR X user files/Chris",
+                    "analysis": "Max-Min",
+                    "normalise": "BG",
+                    "save_imgs": "True",
+                    "save_path": "/Volumes/krauss/GMR X user files/Chris"
+                }
+            ]
+        }
+    '''
+    filename = os.path.join(dir_name, 'analysis_settings.config')
+    with open(filename, 'r') as f:
+        return json.load(f)
 
 
 def config_dir_path():
@@ -39,7 +76,6 @@ def config_dir_path():
     print('Data set(s) to be examined:')
     print(os.listdir(main_dir))
     print('\n')
-
     return main_dir
 
 
@@ -50,12 +86,11 @@ def create_all_dirs(dir_name):
     Args:
         dir_name: <string) directory path for data
     '''
-    create_dir_list = ['corrected_imgs']
+    create_dir_list = ['corrected_imgs',
+                       'corrected_imgs_pngs']
     for directory in create_dir_list:
         new_dir = os.path.join(dir_name, directory)
-        new_png_dir = os.path.join(dir_name, f'{directory}_pngs')
         check_dir_exists(new_dir)
-        check_dir_exists(new_png_dir)
 
 
 def check_dir_exists(dir_name):
@@ -68,43 +103,6 @@ def check_dir_exists(dir_name):
         os.mkdir(dir_name)
 
 
-def exp_in_json(dir_name):
-    '''
-    Reads in the experiment settings file outputted from GMRX setup detailing
-    the number of images, integration time, initial/final wavelength and step,
-    time step and image numbers.
-    Args:
-        dir_name: <string> directory containing experiment settings document
-    Returns:
-        a dictionary containing each setting
-    Example JSON:
-        {
-            "hs_images": 1,
-            "integration_time": 500.0,
-            "slit_widths": 1000,
-            "initial_wavelength": 700.0,
-            "final_wavelength": 800.0,
-            "wavelength_step": 0.5,
-            "time_step": 0,
-            "files": [
-                {
-                    "filename": "hs_img_000",
-                    "date": "29/04/2019",
-                    "time": "11:48:57"
-                },
-                {
-                    "filename": "hs_img_001",
-                    "date": "29/04/2019",
-                    "time": "11:50:24"
-                }
-            ]
-        }
-    '''
-    filename = os.path.join(dir_name, 'experiment_settings.config')
-    with open(filename, 'r') as f:
-        return json.load(f)
-
-
 def exp_in(dir_name):
     '''
     Reads in the experiment settings file outputted from GMRX setup detailing
@@ -113,7 +111,7 @@ def exp_in(dir_name):
     Args:
         dir_name: <string> directory containing experiment settings document
     Returns:
-        a dictionary containing each setting
+        an array containing each line of the experiment settings document
     '''
 
     exp_settings = {
@@ -126,8 +124,7 @@ def exp_in(dir_name):
         'hs_imgs': []
     }
 
-    filename = os.path.join(dir_name, 'experiment_settings.txt')
-    with open(filename, 'r') as exp:
+    with open(os.path.join(dir_name, 'experiment_settings.txt'), 'r') as exp:
         lines = exp.readlines()
 
     for line in lines:
@@ -161,9 +158,9 @@ def get_pwr_spectrum(dir_name,
         plot_show: <bool> if true power spectrum shows
         plot_save: <bool> if true power spectrum is saved
     '''
-    power_spectrum = os.path.join(dir_name, 'power_specrum.csv')
+    power_spectrum = os.path.join(dir_name, 'power_spectrum.csv')
     step, wl, f, power = np.genfromtxt(power_spectrum,
-                                       delimiter=',',
+                                       delimiter='\t',
                                        skip_header=1,
                                        unpack=True)
     max_element = np.amax(power)
@@ -242,12 +239,11 @@ def csv_in(file_path):
     essentially a method of returning a user given (or system given) file
     name without extension. Returns the img values and the file name.
     Args:
-        file_path: <string> file path
+        file_name: <string> file path
     '''
     file_name = get_filename(file_path)
     img = pd.read_csv(file_path, sep='\t')
     img = img.values
-
     return img, file_name
 
 
@@ -273,6 +269,7 @@ def array_out(array_name, file_name, dir_name):
         dir_name: <string> directory name to copy saved array to
     '''
     check_dir_exists(dir_name)
+
     file_name = f'{file_name}.npy'
     file_path = os.path.join(dir_name, file_name)
 
@@ -310,11 +307,9 @@ def png_out(image_data,
     if plot_show:
         plt.show()
 
-    out_name = (f'corrected_{file_name}.png')
     out_dir = os.path.join(dir_name, 'corrected_imgs_pngs')
-    plt.savefig(out_name)
-    copy(out_name, out_dir)
-    os.remove(out_name)
+    out_path = os.path.join(out_dir, out_name)
+    plt.savefig(out_path)
 
     fig.clf()
     plt.close(fig)
@@ -355,6 +350,62 @@ def user_in(choiceDict):
 
         break
 
+    return int(choice)
+
+
+def process_choice(choice):
+    '''
+    Provides bool options for the code processed as determined by the
+    user.
+    Args:
+        choice: <int> output from user_in function
+    Returns:
+        raw_save: <bool> if true all raw images are saved
+        norm_save: <bool> if true all normalised images are saved
+        pwr_save: <bool> if true power spectrum is saved
+    '''
+    normalise = True
+    datacube = True
+    fsr = True
+
+    if choice == 1:
+        datacube = False
+
+    if choice == 2:
+        normalise = False
+
+    if choice == 3:
+        normalise = False
+        datacube = False
+
+    return normalise, datacube, fsr
+
+def norm_choice(choice):
+    '''
+    Provides bool options for the normalisation process as determined by the
+    user. There are three options, raw image save, normalised image save and
+    power spectrum save. The system is given pre-determined defaults which
+    can be user altered.
+    Args:
+        choice: <int> output from user_in function
+    Returns:
+        raw_save: <bool> if true all raw images are saved
+        norm_save: <bool> if true all normalised images are saved
+        pwr_save: <bool> if true power spectrum is saved
+    '''
+    raw_save = False
+    norm_save = False
+    pwr_save = True
+
+    if choice == 1:
+        raw_save = True
+        norm_save = True
+        pwr_save = True
+
+    if choice == 2:
+        pwr_save = False
+    return raw_save, norm_save, pwr_save
+
 
 def update_progress(progress):
     '''
@@ -388,26 +439,3 @@ def update_progress(progress):
     text = f'\rPercent: [{progress_str}] {(progress * 100):.0f}% {status}'
     sys.stdout.write(text)
     sys.stdout.flush()
-
-
-if __name__ == '__main__':
-    # main_dir = exp_in()
-    # hs_imgs = os.listdir(main_dir)
-
-    # for hs_img in hs_imgs:
-    #     img_dir = os.path.join(main_dir, hs_img)
-
-    #     if not os.path.isdir(img_dir):
-    #         continue
-
-    #     print(img_dir)
-    #     print(os.listdir(img_dir))
-    while True:
-        d = {
-            1: "Continue",
-            2: "Quit",
-        }
-
-        choice = user_in(d)
-        if choice == 2:
-            sys.exit()
